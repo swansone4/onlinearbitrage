@@ -10,13 +10,18 @@ def serve_index():
     return send_from_directory('static', 'index.html')
 
 @app.route('/analyze', methods=['POST'])
+@app.route('/analyze', methods=['POST'])
 def analyze():
     try:
         params = request.json
-        result = run_analysis(params)  # Run your core Python logic
+        print("Received parameters:", params)
+        result = run_analysis(params)
+        print("Analysis result keys:", result.keys())
         return jsonify(result)
     except Exception as e:
+        print("Error in /analyze:", e)
         return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
