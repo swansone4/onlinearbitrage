@@ -133,7 +133,7 @@ def create_roi_distribution(df):
     return fig.to_dict()
 
 
-def run_analysis(params):
+def run_analysis(params, csv_path):
     # Extract params with defaults
     total_budget = params.get("totalBudget", 1000)
     min_roi = params.get("minROI", 10)
@@ -149,7 +149,10 @@ def run_analysis(params):
     volatility_balance = 1 - velocity_volatility_balance
 
     # Load CSV - adjust path or implement upload later
-    CSV_FILENAME = "tacticalarbitrage_sample.csv"  # Replace with your CSV path or upload logic
+    try:
+        df = pd.read_csv(csv_path)
+    except Exception as e:
+        return {"error": f"CSV load error: {e}"}
     try:
         df = pd.read_csv(CSV_FILENAME)
     except Exception as e:
