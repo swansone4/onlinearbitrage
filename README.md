@@ -15,8 +15,10 @@ This tool performs intelligent Amazon FBA product selection by analyzing:
 ## Run It Locally
 
 ```bash
-git clone https://github.com/yourusername/tactical-arbitrage-engine
-cd tactical-arbitrage-engine
+
+cd ~
+git clone https://github.com/[username]/onlinearbitrage.git
+cd onlinearbitrage
 
 # Optional: create a virtual environment
 python -m venv venv
