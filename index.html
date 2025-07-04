@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tactical Arbitrage Engine</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="container">
+    <h1>Arbitrage Strategy Engine</h1>
+
+    <!-- Controls -->
+    <div class="top-controls">
+      <button id="fileUpload">Upload CSV</button>
+      <input type="file" id="csvFile" accept=".csv" style="display:none" />
+
+      <div class="presets">
+        <button class="preset-btn" data-preset="conservative">Conservative</button>
+        <button class="preset-btn" data-preset="moderate">Moderate</button>
+        <button class="preset-btn" data-preset="aggressive">Aggressive</button>
+        <button class="preset-btn" data-preset="custom">Custom</button>
+      </div>
+
+      <button id="runAnalysis">Run Analysis</button>
+      <button id="exportResults">Export</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-button active" data-tab="parameters">Parameters</button>
+      <button class="tab-button" data-tab="dashboard">Dashboard</button>
+      <button class="tab-button" data-tab="terminal">Terminal</button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content active" id="parameters">
+      <div class="section">
+        <label>Total Budget: $<input type="number" id="totalBudget" value="1000" /></label>
+      </div>
+
+      <div class="section">
+        <label>Max Investment Per Product (%): 
+          <input type="range" id="maxInvestmentPct" min="1" max="100" value="20" />
+          <span id="maxInvestmentPctValue">20</span>%
+        </label>
+      </div>
+
+      <div class="section">
+        <label>Min ROI Threshold (%): 
+          <input type="range" id="minROI" min="1" max="100" value="10" />
+          <span id="minROIValue">10</span>%
+        </label>
+      </div>
+
+      <div class="section">
+        <label>Min Profit ($): <input type="number" id="minProfit" value="1" /></label>
+      </div>
+
+      <div class="section">
+        <label>Max FBA Sellers:
+          <input type="range" id="maxFBASellers" min="0" max="50" value="20" />
+          <span id="maxFBASellersValue">20</span>
+        </label>
+      </div>
+
+      <h3>Velocity Score Weights</h3>
+      <div class="section">
+        <label>Sales:
+          <input type="range" id="salesWeight" min="0" max="100" value="40" />
+          <span id="salesWeightValue">40</span>
+        </label>
+        <label>Rank:
+          <input type="range" id="rankWeight" min="0" max="100" value="30" />
+          <span id="rankWeightValue">30</span>
+        </label>
+        <label>FBA Competition:
+          <input type="range" id="fbaWeight" min="0" max="100" value="20" />
+          <span id="fbaWeightValue">20</span>
+        </label>
+        <label>Amazon Penalty:
+          <input type="range" id="amazonWeight" min="0" max="100" value="10" />
+          <span id="amazonWeightValue">10</span>
+        </label>
+      </div>
+
+      <h3>Volatility Score Weights</h3>
+      <div class="section">
+        <label>30-Day vs 90-Day Price Volatility:
+          <input type="range" id="volatilityWeight" min="0" max="100" value="60" />
+          <span id="volatilityWeightValue">60</span> / <span id="volatilityWeight2">40</span>
+        </label>
+      </div>
+
+      <h3>Combined Score Balance</h3>
+      <div class="section">
+        <label>Velocity vs Volatility:
+          <input type="range" id="velocityVolatilityBalance" min="0" max="100" value="70" />
+          <span id="velocityVolatilityBalanceValue">70</span> / <span id="volatilityBalanceValue">30</span>
+        </label>
+      </div>
+
+      <h3>Other Options</h3>
+      <div class="section">
+        <label>Budget Allocation:
+          <select id="budgetStrategy">
+            <option value="equal_weight">Equal Weight</option>
+            <option value="score_weighted" selected>Score Weighted</option>
+            <option value="risk_adjusted">Risk Adjusted</option>
+          </select>
+        </label>
+        <label>Quadrant Analysis:
+          <select id="quadrantMethod">
+            <option value="median">Median-Based</option>
+            <option value="percentile">Percentile-Based</option>
+          </select>
+        </label>
+        <label>Normalization:
+          <select id="normalizationMethod">
+            <option value="minmax">Min-Max</option>
+            <option value="zscore">Z-Score</option>
+            <option value="percentile">Percentile Ranking</option>
+          </select>
+        </label>
+        <label>Outlier Handling:
+          <select id="outlierHandling">
+            <option value="clip">Clip</option>
+            <option value="remove">Remove</option>
+            <option value="keep">Keep</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="button-row">
+        <button id="savePreset">Save Preset</button>
+        <button id="resetParams">Reset</button>
+      </div>
+    </div>
+
+    <div class="tab-content" id="dashboard">
+      <div class="metrics">
+        <h3>Macro Metrics</h3>
+        <p>Total Products: <span id="totalProducts">0</span></p>
+        <p>Total Investment: <span id="totalInvestment">$0.00</span></p>
+        <p>Expected Profit: <span id="expectedProfit">$0.00</span></p>
+        <p>Average ROI: <span id="avgROI">0%</span></p>
+        <p>Sharpe Ratio: <span id="sharpeRatio">-</span></p>
+        <p>Risk Score: <span id="riskScore">-</span></p>
+      </div>
+
+      <div class="charts">
+        <div id="overviewChart" class="chart"></div>
+        <div id="riskReturnChart" class="chart"></div>
+        <div id="quadrantChart" class="chart"></div>
+        <div id="distributionChart" class="chart"></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="terminal">
+      <div class="terminal-header">
+        <h3>Terminal Output</h3>
+        <button id="clearTerminal">Clear</button>
+      </div>
+      <div id="terminalContent" class="terminal-body">
+        > Ready...
+      </div>
+    </div>
+  </div>
+<script>
+  // Initialize app
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeEventListeners();
+    initializeSliders();
+    applyPreset('moderate');
+    logToTerminal('System initialized successfully.');
+  });
+
+  function initializeEventListeners() {
+    document.getElementById('fileUpload').addEventListener('click', () => {
+      document.getElementById('csvFile').click();
+    });
+
+    document.getElementById('csvFile').addEventListener('change', handleFileUpload);
+
+    const fileUpload = document.getElementById('fileUpload');
+    fileUpload.addEventListener('dragover', e => {
+      e.preventDefault();
+      fileUpload.classList.add('dragover');
+    });
+    fileUpload.addEventListener('dragleave', () => {
+      fileUpload.classList.remove('dragover');
+    });
+    fileUpload.addEventListener('drop', e => {
+      e.preventDefault();
+      fileUpload.classList.remove('dragover');
+      handleFileDrop(e);
+    });
+
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const preset = btn.dataset.preset;
+        applyPreset(preset);
+        updatePresetButtons(preset);
+      });
+    });
+
+    document.querySelectorAll('.tab-button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        switchTab(btn.dataset.tab);
+      });
+    });
+
+    document.getElementById('runAnalysis').addEventListener('click', runAnalysis);
+    document.getElementById('exportResults').addEventListener('click', exportResults);
+    document.getElementById('savePreset').addEventListener('click', savePreset);
+    document.getElementById('resetParams').addEventListener('click', resetParams);
+    document.getElementById('clearTerminal').addEventListener('click', clearTerminal);
+  }
+
+  function initializeSliders() {
+    const sliders = [
+      'maxInvestmentPct', 'minROI', 'maxFBASellers', 'salesWeight',
+      'rankWeight', 'fbaWeight', 'amazonWeight', 'volatilityWeight',
+      'velocityVolatilityBalance'
+    ];
+
+    sliders.forEach(sliderId => {
+      const slider = document.getElementById(sliderId);
+      if (slider) {
+        slider.addEventListener('input', () => {
+          updateSliderValue(sliderId, slider.value);
+        });
+      }
+    });
+  }
+
+  function updateSliderValue(id, val) {
+    const el = document.getElementById(id + 'Value');
+    if (el) el.textContent = val;
+
+    if (id === 'volatilityWeight') {
+      document.getElementById('volatilityWeight2').textContent = 100 - val;
+    }
+
+    if (id === 'velocityVolatilityBalance') {
+      document.getElementById('volatilityBalanceValue').textContent = 100 - val;
+    }
+
+    if (currentPreset !== 'custom') {
+      currentPreset = 'custom';
+      updatePresetButtons('custom');
+    }
+  }
+
+  function updatePresetButtons(selected) {
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.classList.remove('active');
+      if (btn.dataset.preset === selected) btn.classList.add('active');
+    });
+  }
+
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+
+    document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+  }
+
+  function clearTerminal() {
+    const terminal = document.getElementById('terminalContent');
+    terminal.textContent = '> Terminal cleared...';
+  }
+
+  function logToTerminal(msg) {
+    const term = document.getElementById('terminalContent');
+    term.textContent += '\n' + msg;
+    term.scrollTop = term.scrollHeight;
+  }
+
+  function applyPreset(preset) {
+    if (preset === 'custom') return;
+    const config = presets[preset];
+    Object.keys(config).forEach(key => {
+      const el = document.getElementById(key);
+      if (el) {
+        el.value = config[key];
+        if (el.type === 'range') updateSliderValue(key, config[key]);
+      }
+    });
+    currentPreset = preset;
+    logToTerminal(`Applied ${preset} preset configuration.`);
+  }
+
+  function collectAllParameterValues() {
+    return {
+      totalBudget: parseFloat(document.getElementById('totalBudget').value),
+      maxInvestmentPct: parseFloat(document.getElementById('maxInvestmentPct').value),
+      budgetStrategy: document.getElementById('budgetStrategy').value,
+      minROI: parseFloat(document.getElementById('minROI').value),
+      minProfit: parseFloat(document.getElementById('minProfit').value),
+      maxFBASellers: parseInt(document.getElementById('maxFBASellers').value),
+      salesWeight: parseInt(document.getElementById('salesWeight').value),
+      rankWeight: parseInt(document.getElementById('rankWeight').value),
+      fbaWeight: parseInt(document.getElementById('fbaWeight').value),
+      amazonWeight: parseInt(document.getElementById('amazonWeight').value),
+      volatilityWeight: parseInt(document.getElementById('volatilityWeight').value),
+      velocityVolatilityBalance: parseInt(document.getElementById('velocityVolatilityBalance').value),
+      quadrantMethod: document.getElementById('quadrantMethod').value,
+      normalizationMethod: document.getElementById('normalizationMethod').value,
+      outlierHandling: document.getElementById('outlierHandling').value
+    };
+  }
+
+  async function runAnalysis() {
+    const params = collectAllParameterValues();
+    logToTerminal('Running analysis...');
+    try {
+      const res = await fetch('http://127.0.0.1:5000/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+      const data = await res.json();
+      updateMetrics(data.metrics);
+      updateCharts(data.charts);
+      logToTerminal('Analysis complete.');
+    } catch (err) {
+      logToTerminal('Error: ' + err.message);
+    }
+  }
+
+  function updateMetrics(metrics) {
+    document.getElementById('totalProducts').textContent = metrics.totalProducts;
+    document.getElementById('totalInvestment').textContent = `$${metrics.totalInvestment}`;
+    document.getElementById('expectedProfit').textContent = `$${metrics.expectedProfit}`;
+    document.getElementById('avgROI').textContent = `${metrics.avgROI}%`;
+    document.getElementById('sharpeRatio').textContent = metrics.sharpeRatio;
+    document.getElementById('riskScore').textContent = metrics.riskScore;
+  }
+
+  function updateCharts(charts) {
+    Plotly.react('overviewChart', charts.overviewChart.data, charts.overviewChart.layout);
+    Plotly.react('riskReturnChart', charts.riskReturnChart.data, charts.riskReturnChart.layout);
+    Plotly.react('quadrantChart', charts.quadrantChart.data, charts.quadrantChart.layout);
+    Plotly.react('distributionChart', charts.distributionChart.data, charts.distributionChart.layout);
+  }
+
+  // Dummy placeholders for file handling
+  function handleFileUpload() {
+    logToTerminal('File uploaded.');
+  }
+
+  function handleFileDrop(e) {
+    logToTerminal('File dropped.');
+  }
+
+  function exportResults() {
+    logToTerminal('Export triggered.');
+  }
+
+  function savePreset() {
+    logToTerminal('Preset saved.');
+  }
+
+  function resetParams() {
+    applyPreset('moderate');
+    logToTerminal('Parameters reset to moderate.');
+  }
+
+  // Preset configuration
+  let currentPreset = 'moderate';
+
+  const presets = {
+    conservative: {
+      minROI: 15,
+      maxFBASellers: 10,
+      salesWeight: 30,
+      rankWeight: 30,
+      fbaWeight: 25,
+      amazonWeight: 15,
+      velocityVolatilityBalance: 50,
+      budgetStrategy: 'equal_weight'
+    },
+    moderate: {
+      minROI: 10,
+      maxFBASellers: 20,
+      salesWeight: 35,
+      rankWeight: 25,
+      fbaWeight: 25,
+      amazonWeight: 15,
+      velocityVolatilityBalance: 70,
+      budgetStrategy: 'score_weighted'
+    },
+    aggressive: {
+      minROI: 5,
+      maxFBASellers: 30,
+      salesWeight: 45,
+      rankWeight: 20,
+      fbaWeight: 20,
+      amazonWeight: 15,
+      velocityVolatilityBalance: 80,
+      budgetStrategy: 'score_weighted'
+    }
+  };
+</script>
+
+</body>
+</html>
