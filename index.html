@@ -349,9 +349,36 @@
   }
 
   // Dummy placeholders for file handling
-  function handleFileUpload() {
-    logToTerminal('File uploaded.');
+  async function handleFileUpload() {
+  const fileInput = document.getElementById('csvFile');
+  const file = fileInput.files[0];
+
+  if (!file) {
+    logToTerminal('No file selected.');
+    return;
   }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  logToTerminal('Uploading file...');
+
+  try {
+    const response = await fetch('http://127.0.0.1:5000/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+    if (response.ok) {
+      logToTerminal('File uploaded successfully.');
+    } else {
+      logToTerminal('Upload error: ' + result.error);
+    }
+  } catch (err) {
+    logToTerminal('Error uploading file: ' + err.message);
+  }
+}
 
   function handleFileDrop(e) {
     logToTerminal('File dropped.');
