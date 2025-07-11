@@ -3,7 +3,20 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import warnings
+import json
 warnings.filterwarnings('ignore')
+
+
+def convert_numpy_to_lists(obj):
+    """Convert numpy arrays to lists for JSON serialization"""
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_to_lists(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_to_lists(item) for item in obj]
+    else:
+        return obj
 
 
 def clean_price(price_str):
@@ -44,7 +57,7 @@ def create_risk_return_scatter(df):
                      color_continuous_scale='Viridis')
     
     fig.update_layout(width=700, height=450, title_x=0.5)
-    return fig.to_dict()
+    return convert_numpy_to_lists(fig.to_dict())
 
 
 def create_quadrant_analysis(df):
@@ -78,7 +91,7 @@ def create_quadrant_analysis(df):
     fig.add_vline(x=velocity_median, line_dash="dash", line_color="gray", opacity=0.5)
     
     fig.update_layout(width=700, height=450, title_x=0.5)
-    return fig.to_dict()
+    return convert_numpy_to_lists(fig.to_dict())
 
 
 def create_budget_waterfall(df, total_budget):
@@ -113,7 +126,7 @@ def create_budget_waterfall(df, total_budget):
         yaxis2=dict(title="Cumulative Spend ($)", overlaying='y', side='right'),
         width=700, height=450, title_x=0.5
     )
-    return fig.to_dict()
+    return convert_numpy_to_lists(fig.to_dict())
 
 
 def create_roi_distribution(df):
@@ -130,31 +143,38 @@ def create_roi_distribution(df):
                   annotation_text=f"Mean ROI: {mean_roi:.1f}%")
     
     fig.update_layout(width=700, height=450, title_x=0.5)
-    return fig.to_dict()
+    return convert_numpy_to_lists(fig.to_dict())
 
 
 def run_analysis(params, csv_path):
     # Extract params with defaults
     total_budget = params.get("totalBudget", 1000)
+    max_investment_pct = params.get("maxInvestmentPct", 20)  # Add this line
     min_roi = params.get("minROI", 10)
     min_profit = params.get("minProfit", 1)
     max_fba_sellers = params.get("maxFBASellers", 20)
-    sales_weight = params.get("salesWeight", 40) / 100
-    rank_weight = params.get("rankWeight", 30) / 100
-    fba_weight = params.get("fbaWeight", 20) / 100
-    amazon_weight = params.get("amazonWeight", 10) / 100
+    # Get raw weights and normalize them to sum to 1.0
+    sales_weight_raw = params.get("salesWeight", 40)
+    rank_weight_raw = params.get("rankWeight", 30)
+    fba_weight_raw = params.get("fbaWeight", 20)
+    amazon_weight_raw = params.get("amazonWeight", 10)
+    
+    # Calculate total weight for normalization
+    total_weight = sales_weight_raw + rank_weight_raw + fba_weight_raw + amazon_weight_raw
+    
+    # Normalize weights to sum to 1.0
+    sales_weight = sales_weight_raw / total_weight
+    rank_weight = rank_weight_raw / total_weight
+    fba_weight = fba_weight_raw / total_weight
+    amazon_weight = amazon_weight_raw / total_weight
     volatility_weight_30 = params.get("volatilityWeight", 60) / 100
     volatility_weight_90 = 1 - volatility_weight_30
     velocity_volatility_balance = params.get("velocityVolatilityBalance", 70) / 100
     volatility_balance = 1 - velocity_volatility_balance
 
-    # Load CSV - adjust path or implement upload later
+    # Load CSV
     try:
         df = pd.read_csv(csv_path)
-    except Exception as e:
-        return {"error": f"CSV load error: {e}"}
-    try:
-        df = pd.read_csv(CSV_FILENAME)
     except Exception as e:
         return {"error": f"CSV load error: {e}"}
 
@@ -190,6 +210,10 @@ def run_analysis(params, csv_path):
     norm_rank = 1 - normalize(df['Avg_Rank_Clean'])  # lower rank better
     norm_fba = 1 - normalize(df['FBA_Sellers_Clean'])
     amazon_penalty = (~df['Amazon_Competing']).astype(float)  # 1 if NOT competing, else 0
+    
+    # Debug: Print sample normalized values
+    print(f"DEBUG: Sample normalized values - Sales: {norm_sales.iloc[0]:.3f}, Rank: {norm_rank.iloc[0]:.3f}, FBA: {norm_fba.iloc[0]:.3f}, Amazon: {amazon_penalty.iloc[0]:.3f}")
+    print(f"DEBUG: Sample raw values - Sales: {df['Monthly_Sales_Clean'].iloc[0]:.0f}, Rank: {df['Avg_Rank_Clean'].iloc[0]:.0f}, FBA: {df['FBA_Sellers_Clean'].iloc[0]:.0f}, Amazon Competing: {df['Amazon_Competing'].iloc[0]}")
 
     df['Velocity_Score'] = (
         norm_sales * sales_weight +
@@ -197,6 +221,27 @@ def run_analysis(params, csv_path):
         norm_fba * fba_weight +
         amazon_penalty * amazon_weight
     )
+    
+    # Debug: Print weight information
+    print(f"DEBUG: Velocity Score Weights - Sales: {sales_weight:.3f}, Rank: {rank_weight:.3f}, FBA: {fba_weight:.3f}, Amazon: {amazon_weight:.3f}")
+    print(f"DEBUG: Total Velocity Weight: {sales_weight + rank_weight + fba_weight + amazon_weight:.3f}")
+    print(f"DEBUG: Sample Velocity Score Range: {df['Velocity_Score'].min():.3f} to {df['Velocity_Score'].max():.3f}")
+    
+    # Debug: Show how weights affect a sample product
+    sample_idx = 0
+    if len(df) > 0:
+        sample_sales = norm_sales.iloc[sample_idx]
+        sample_rank = norm_rank.iloc[sample_idx]
+        sample_fba = norm_fba.iloc[sample_idx]
+        sample_amazon = amazon_penalty.iloc[sample_idx]
+        sample_score = df['Velocity_Score'].iloc[sample_idx]
+        
+        print(f"DEBUG: Sample Product Velocity Score Breakdown:")
+        print(f"  - Sales component: {sample_sales:.3f} * {sales_weight:.3f} = {sample_sales * sales_weight:.3f}")
+        print(f"  - Rank component: {sample_rank:.3f} * {rank_weight:.3f} = {sample_rank * rank_weight:.3f}")
+        print(f"  - FBA component: {sample_fba:.3f} * {fba_weight:.3f} = {sample_fba * fba_weight:.3f}")
+        print(f"  - Amazon component: {sample_amazon:.3f} * {amazon_weight:.3f} = {sample_amazon * amazon_weight:.3f}")
+        print(f"  - Total Velocity Score: {sample_score:.3f}")
 
     # Volatility calculation
     df['Avg_Price_30d'] = df.get('Average Price (30 days)', '$0').apply(clean_price)
@@ -213,12 +258,20 @@ def run_analysis(params, csv_path):
     # Combined score with balance
     df['Combined_Score'] = df['Velocity_Score'] * velocity_volatility_balance + df['Volatility_Score'] * volatility_balance
 
-    # Select products under budget
+    # Select products under budget with max investment per product limit
     df_sorted = df.sort_values('Combined_Score', ascending=False)
     selected_rows = []
     running_total = 0
+    max_investment_per_product = total_budget * (max_investment_pct / 100)
+    
     for _, row in df_sorted.iterrows():
         price = row['Price_Clean']
+        
+        # Check if this product exceeds max investment per product
+        if price > max_investment_per_product:
+            continue  # Skip this product if it's too expensive
+        
+        # Check if adding this product would exceed total budget
         if running_total + price <= total_budget:
             selected_rows.append(row)
             running_total += price
@@ -248,6 +301,30 @@ def run_analysis(params, csv_path):
         "avgMonthlySales": round(final_df['Monthly_Sales_Clean'].mean(), 2),
     }
 
+    # Create buy list CSV
+    buy_list_cols = [
+        'Product_Title', 'Price_Clean', 'Profit_Clean', 'ROI_Clean',
+        'Velocity_Score', 'Volatility_Score', 'Combined_Score',
+        'Monthly_Sales_Clean', 'Avg_Rank_Clean', 'FBA_Sellers_Clean', 'Amazon_Competing'
+    ]
+    # Add link columns if present
+    link_cols = []
+    for possible in ['Source URL', 'Amazon URL', 'K URL', 'Camel Camel Camel URL', 'Amazon Seller Central URL']:
+        if possible in final_df.columns:
+            link_cols.append(possible)
+    buy_list_cols.extend(link_cols)
+    
+    # Add image columns if present
+    image_cols = []
+    for possible in ['Product Image', 'Amazon Image']:
+        if possible in final_df.columns:
+            image_cols.append(possible)
+    buy_list_cols.extend(image_cols)
+    
+    buy_list_df = final_df[buy_list_cols].copy()
+    buy_list_path = 'uploads/buy_list.csv'
+    buy_list_df.to_csv(buy_list_path, index=False)
+
     # Create charts as JSON dicts for frontend Plotly rendering
     charts = {
         "riskReturnChart": create_risk_return_scatter(final_df),
@@ -256,4 +333,4 @@ def run_analysis(params, csv_path):
         "roiDistribution": create_roi_distribution(final_df),
     }
 
-    return {"metrics": metrics, "charts": charts}
+    return {"metrics": metrics, "charts": charts, "buyListCsvPath": buy_list_path}

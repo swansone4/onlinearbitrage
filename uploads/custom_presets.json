@@ -1,0 +1,36 @@
+{
+  "First batch, high vel, bgt 500, ": {
+    "totalBudget": 500,
+    "maxInvestmentPct": 20,
+    "budgetStrategy": "score_weighted",
+    "minROI": 10,
+    "minProfit": 10,
+    "maxFBASellers": 20,
+    "salesWeight": 35,
+    "rankWeight": 25,
+    "fbaWeight": 25,
+    "amazonWeight": 15,
+    "volatilityWeight": 60,
+    "velocityVolatilityBalance": 80,
+    "quadrantMethod": "median",
+    "normalizationMethod": "minmax",
+    "outlierHandling": "clip"
+  },
+  "cashflow": {
+    "totalBudget": 150,
+    "maxInvestmentPct": 10,
+    "budgetStrategy": "score_weighted",
+    "minROI": 5,
+    "minProfit": 5,
+    "maxFBASellers": 30,
+    "salesWeight": 45,
+    "rankWeight": 20,
+    "fbaWeight": 20,
+    "amazonWeight": 15,
+    "volatilityWeight": 60,
+    "velocityVolatilityBalance": 100,
+    "quadrantMethod": "median",
+    "normalizationMethod": "minmax",
+    "outlierHandling": "clip"
+  }
+}
