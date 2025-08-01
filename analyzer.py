@@ -178,6 +178,10 @@ def run_analysis(params, csv_path):
     except Exception as e:
         return {"error": f"CSV load error: {e}"}
 
+    # Ensure 'Camel Camel Camel URL' column exists even if missing in input
+    if 'Camel Camel Camel URL' not in df.columns:
+        df['Camel Camel Camel URL'] = ''
+
     # Data cleaning and conversions
     df['Monthly_Sales_Clean'] = pd.to_numeric(df.get('Estimated Monthly Sales', 0), errors='coerce').fillna(0)
     df['Avg_Rank_Clean'] = pd.to_numeric(df.get('Average Rank (90 Days)', np.inf), errors='coerce').fillna(np.inf)
@@ -289,6 +293,23 @@ def run_analysis(params, csv_path):
     else:
         final_df['Product_Title'] = 'Unknown Product'
 
+    # Ensure ASIN is included in the buy list
+    if 'ASIN' in final_df.columns:
+        final_df['ASIN'] = final_df['ASIN']
+    else:
+        final_df['ASIN'] = ''
+
+    # Generate CamelCamelCamel chart URLs for each product
+    def generate_camel_urls(asin):
+        if not isinstance(asin, str) or asin.strip() == '':
+            return '{}'
+        base = f'https://charts.camelcamelcamel.com/us/{asin}'
+        price_types = ['new', 'used', 'amazon']
+        time_periods = ['1m', '3m', '6m', '1y', 'all']
+        urls = {ptype: {tp: f"{base}/{ptype}.png?force=1&zero=0&w=692&h=364&desired=false&legend=1&ilt=1&tp={tp}&fo=0&lang=en" for tp in time_periods} for ptype in price_types}
+        return json.dumps(urls)
+    final_df['Camel_Chart_URLs'] = final_df['ASIN'].apply(generate_camel_urls)
+
     # Macro metrics
     metrics = {
         "totalProducts": len(final_df),
@@ -321,6 +342,13 @@ def run_analysis(params, csv_path):
             image_cols.append(possible)
     buy_list_cols.extend(image_cols)
     
+    # Remove 'K URL' from the buy list columns if present (before creating buy_list_df)
+    if 'K URL' in buy_list_cols:
+        buy_list_cols.remove('K URL')
+    # Add ASIN and Camel_Chart_URLs to buy_list_cols if not present (after buy_list_cols is defined)
+    for col in ['ASIN', 'Camel_Chart_URLs']:
+        if col not in buy_list_cols:
+            buy_list_cols.append(col)
     buy_list_df = final_df[buy_list_cols].copy()
     buy_list_path = 'uploads/buy_list.csv'
     buy_list_df.to_csv(buy_list_path, index=False)

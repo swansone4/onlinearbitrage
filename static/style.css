@@ -937,3 +937,52 @@ body {
   justify-content: center;
   min-height: 120px;
 }
+
+.btn-group {
+  display: inline-flex;
+  gap: 0.5em;
+  margin: 0.5em 0;
+}
+
+.chart-btn {
+  background: #23272f;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 0.4em 1.1em;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border 0.15s;
+  outline: none;
+}
+
+.chart-btn.active, .chart-btn:focus {
+  background: #4f8cff;
+  color: #fff;
+  border-color: #4f8cff;
+  z-index: 1;
+}
+
+.chart-btn:hover:not(.active) {
+  background: #2d323c;
+  color: #cce0ff;
+  border-color: #4f8cff;
+}
+
+.price-charts-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5em;
+  align-items: center;
+  margin-bottom: 0.5em;
+}
+
+.price-charts-section {
+  margin-top: 1.5em;
+  margin-bottom: 1em;
+}
+
+.price-charts-image-container {
+  margin-top: 0.5em;
+  text-align: center;
+}
